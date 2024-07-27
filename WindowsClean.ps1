@@ -1,19 +1,29 @@
-﻿# Load the PresentationFramework assembly
+# Load the PresentationFramework assembly
 Add-Type -AssemblyName PresentationFramework
 
 # Define the XAML form
 [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Windows Clean" Height="300" Width="400">
+        Title="Windows Clean" Height="350" Width="400">
     <Grid>
-        <Button x:Name="btnDeleteTempFiles" Content="Delete Temporary Files" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" Width="150"/>
-        <Button x:Name="btnEmptyRecycleBin" Content="Empty Recycle Bin" HorizontalAlignment="Left" Margin="10,40,0,0" VerticalAlignment="Top" Width="150"/>
-        <Button x:Name="btnDeleteUnwantedData" Content="Delete Unwanted Data" HorizontalAlignment="Left" Margin="10,70,0,0" VerticalAlignment="Top" Width="150"/>
-        <Button x:Name="btnDeleteEventLogData" Content="Delete Event Log Data" HorizontalAlignment="Left" Margin="10,100,0,0" VerticalAlignment="Top" Width="150"/>
-        <Button x:Name="btnClearWindowsEventLogs" Content="Clear Windows Event Logs" HorizontalAlignment="Left" Margin="10,130,0,0" VerticalAlignment="Top" Width="150"/>
-        <Button x:Name="btnScanSystemForErrors" Content="Scan System For Errors" HorizontalAlignment="Left" Margin="10,160,0,0" VerticalAlignment="Top" Width="150"/>
-        <Label x:Name="lblStatus" Content="Status:" HorizontalAlignment="Left" Margin="10,190,0,0" VerticalAlignment="Top"/>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <StackPanel Grid.Column="0" Grid.Row="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Button x:Name="btnDeleteTempFiles" Content="Delete Temporary Files" Width="150" Margin="5"/>
+            <Button x:Name="btnEmptyRecycleBin" Content="Empty Recycle Bin" Width="150" Margin="5"/>
+            <Button x:Name="btnDeleteUnwantedData" Content="Delete Unwanted Data" Width="150" Margin="5"/>
+            <Button x:Name="btnDeleteEventLogData" Content="Delete Event Log Data" Width="150" Margin="5"/>
+            <Button x:Name="btnClearWindowsEventLogs" Content="Clear Windows Event Logs" Width="150" Margin="5"/>
+            <Button x:Name="btnScanSystemForErrors" Content="Scan System For Errors" Width="150" Margin="5"/>
+        </StackPanel>
+        <Label x:Name="lblStatus" Content="Status:" Grid.Column="0" Grid.Row="1" HorizontalAlignment="Left" Margin="10,0,0,0"/>
+        <Label Content="Created by Wakedog" Grid.Column="0" Grid.Row="1" HorizontalAlignment="Right" Margin="0,0,10,0"/>
     </Grid>
 </Window>
 "@
@@ -26,6 +36,8 @@ $window = [Windows.Markup.XamlReader]::Load($reader)
 function Delete-TemporaryFiles {
     try {
         Remove-Item -Path $env:TEMP\* -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path "C:\Windows\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path "C:\Windows\Prefetch\*" -Recurse -Force -ErrorAction SilentlyContinue
         $window.FindName("lblStatus").Content = "Temporary files deleted!"
     } catch {
         $window.FindName("lblStatus").Content = "Error deleting temporary files."
