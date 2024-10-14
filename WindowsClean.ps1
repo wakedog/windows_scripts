@@ -11,7 +11,7 @@ Add-Type -AssemblyName PresentationFramework
 [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Windows Cleaner" Height="400" Width="450" ResizeMode="NoResize">
+        Title="Windows Cleaner" Height="450" Width="500" ResizeMode="NoResize">
     <Grid Margin="10">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
@@ -20,28 +20,37 @@ Add-Type -AssemblyName PresentationFramework
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <ScrollViewer Grid.Column="0" Grid.Row="0">
+        <ScrollViewer Grid.Column="0" Grid.Row="0" VerticalScrollBarVisibility="Auto">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Top">
-                <Button x:Name="btnDeleteTempFiles" Content="Delete Temporary Files" Width="200" Margin="5"/>
-                <Button x:Name="btnEmptyRecycleBin" Content="Empty Recycle Bin" Width="200" Margin="5"/>
-                <Button x:Name="btnDeleteUnwantedData" Content="Delete Unwanted User Profiles" Width="200" Margin="5"/>
-                <Button x:Name="btnClearEventLogs" Content="Clear Event Logs" Width="200" Margin="5"/>
-                <Button x:Name="btnDiskCleanup" Content="Run Disk Cleanup" Width="200" Margin="5"/>
-                <Button x:Name="btnDefragment" Content="Defragment Drives" Width="200" Margin="5"/>
-                <Button x:Name="btnScanSystemForErrors" Content="Scan System For Errors" Width="200" Margin="5"/>
+                <Button x:Name="btnDeleteTempFiles" Content="Delete Temporary Files" Width="220" Margin="5"/>
+                <Button x:Name="btnEmptyRecycleBin" Content="Empty Recycle Bin" Width="220" Margin="5"/>
+                <Button x:Name="btnDeleteUnwantedData" Content="Delete Unwanted User Profiles" Width="220" Margin="5"/>
+                <Button x:Name="btnClearEventLogs" Content="Clear Event Logs" Width="220" Margin="5"/>
+                <Button x:Name="btnDiskCleanup" Content="Run Disk Cleanup" Width="220" Margin="5"/>
+                <Button x:Name="btnDefragment" Content="Defragment Drives" Width="220" Margin="5"/>
+                <Button x:Name="btnScanSystemForErrors" Content="Scan System For Errors" Width="220" Margin="5"/>
             </StackPanel>
         </ScrollViewer>
-        <StackPanel Grid.Column="0" Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="SpaceBetween" Margin="0,10,0,0">
-            <Label x:Name="lblStatus" Content="Status: Idle" HorizontalAlignment="Left"/>
-            <Label Content="Created by Wakedog" HorizontalAlignment="Right"/>
-        </StackPanel>
+        <Grid Grid.Column="0" Grid.Row="1" Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Label x:Name="lblStatus" Content="Status: Idle" Grid.Column="0" HorizontalAlignment="Left"/>
+            <Label Content="Created by Wakedog" Grid.Column="1" HorizontalAlignment="Right" Margin="0,0,10,0"/>
+        </Grid>
     </Grid>
 </Window>
 "@
 
 # Create the XAML form
-$reader = (New-Object System.Xml.XmlNodeReader $xaml)
-$window = [Windows.Markup.XamlReader]::Load($reader)
+try {
+    $reader = (New-Object System.Xml.XmlNodeReader $xaml)
+    $window = [Windows.Markup.XamlReader]::Load($reader)
+} catch {
+    Write-Error "Failed to load XAML. $_"
+    exit
+}
 
 # Define log file path
 $logFile = "$env:LOCALAPPDATA\WindowsCleaner.log"
@@ -133,7 +142,7 @@ function Defragment-Drives {
         Write-Log "Starting defragmentation of drives."
         $drives = Get-PSDrive -PSProvider FileSystem
         foreach ($drive in $drives) {
-            defrag $drive.Name: -w -v | Out-Null
+            defrag "$($drive.Name):\" -w -v | Out-Null
             Write-Log "Defragmented drive: $($drive.Name):"
         }
         $window.FindName("lblStatus").Content = "Drives defragmented successfully."
@@ -194,6 +203,12 @@ $btnDiskCleanup = $window.FindName("btnDiskCleanup")
 $btnDefragment = $window.FindName("btnDefragment")
 $btnScanSystemForErrors = $window.FindName("btnScanSystemForErrors")
 
+# Verify that all buttons were found
+if (-not $btnDeleteTempFiles -or -not $btnEmptyRecycleBin -or -not $btnDeleteUnwantedData -or -not $btnClearEventLogs -or -not $btnDiskCleanup -or -not $btnDefragment -or -not $btnScanSystemForErrors) {
+    [System.Windows.MessageBox]::Show("Failed to load one or more UI elements. Please check the script for errors.", "Initialization Error", "OK", "Error")
+    exit
+}
+
 # Add the button click events
 $btnDeleteTempFiles.Add_Click($btnDeleteTempFiles_Click)
 $btnEmptyRecycleBin.Add_Click($btnEmptyRecycleBin_Click)
@@ -203,8 +218,11 @@ $btnDiskCleanup.Add_Click($btnDiskCleanup_Click)
 $btnDefragment.Add_Click($btnDefragment_Click)
 $btnScanSystemForErrors.Add_Click($btnScanSystemForErrors_Click)
 
-# Initialize Disk Cleanup settings
-Start-Process -FilePath "cleanmgr.exe" -ArgumentList "/sageset:1" -Wait
+# Initialize Disk Cleanup settings if not already set
+if (-not (Test-Path "$env:LOCALAPPDATA\DiskCleanupConfig.reg")) {
+    Start-Process -FilePath "cleanmgr.exe" -ArgumentList "/sageset:1" -Wait
+    reg export "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches" "$env:LOCALAPPDATA\DiskCleanupConfig.reg" /y | Out-Null
+}
 
 # Show the XAML form
 $window.ShowDialog()
